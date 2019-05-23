@@ -34,6 +34,8 @@ import (
 	"github.com/google/gnxi/utils/xpath"
 
 	pb "github.com/openconfig/gnmi/proto/gnmi"
+
+	lr "local-routing"
 )
 
 type arrayFlags []string
@@ -54,6 +56,20 @@ var (
 	targetAddr = flag.String("target_addr", "localhost:10161", "The target address in the format of host:port")
 	targetName = flag.String("target_name", "hostname.com", "The target name use to verify the hostname returned by TLS handshake")
 	timeOut    = flag.Duration("time_out", 10*time.Second, "Timeout for the Get request, 10 seconds by default")
+
+	testcases = {
+		&lr.StaticRoutesStatic {
+			"192.168.1.1",
+			&lr.StaticNextHops {
+				&lr.NextHopsNextHop {
+					&lr.NextHopConfig {
+						"1",
+						"192.168.20.1",
+					}
+				}
+			}
+		}
+	} []lr.TypedValue
 )
 
 func buildPbUpdateList(pathValuePairs []string) []*pb.Update {
@@ -69,7 +85,14 @@ func buildPbUpdateList(pathValuePairs []string) []*pb.Update {
 			log.Exitf("error in parsing xpath %q to gnmi path", pathValuePair[0])
 		}
 		var pbVal *pb.TypedValue
-		if pathValuePair[1][0] == '@' {
+		if pathValuePair[1][0] == '*' {
+			testcase := TO_INT(pathValuePair[1][1:])
+			pbVal = &pb.TypedValue{
+				Value: &pb.TypedValue_ProtoBytes{
+					ProtoBytes: testcases[testcase],
+				},
+			}
+		} else if pathValuePair[1][0] == '@' {
 			jsonFile := pathValuePair[1][1:]
 			jsonConfig, err := ioutil.ReadFile(jsonFile)
 			if err != nil {
