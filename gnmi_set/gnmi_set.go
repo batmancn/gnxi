@@ -13,6 +13,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/*
+gnmi_set \
+  -update local-routes/static-routes/static:"*1" \
+  -target_addr 172.18.8.210:8080 -alsologtostderr -insecure true
+*/
+
 // Binary gnmi_set performs a set request against a gNMI target with the specified config file.
 package main
 
@@ -34,6 +40,8 @@ import (
 	"github.com/google/gnxi/utils/xpath"
 
 	pb "github.com/openconfig/gnmi/proto/gnmi"
+	lr "github.com/google/gnxi/proto"
+	proto "github.com/golang/protobuf/proto"
 )
 
 type arrayFlags []string
@@ -47,6 +55,11 @@ func (i *arrayFlags) Set(value string) error {
 	return nil
 }
 
+type TestCaseStaticRoute struct {
+	path string
+	value lr.StaticRoutesStatic
+}
+
 var (
 	deleteOpt  arrayFlags
 	replaceOpt arrayFlags
@@ -54,6 +67,7 @@ var (
 	targetAddr = flag.String("target_addr", "localhost:10161", "The target address in the format of host:port")
 	targetName = flag.String("target_name", "hostname.com", "The target name use to verify the hostname returned by TLS handshake")
 	timeOut    = flag.Duration("time_out", 10*time.Second, "Timeout for the Get request, 10 seconds by default")
+	pathTarget = flag.String("xpath_target", "NONE", "name of the target for which the path is a member")
 )
 
 func buildPbUpdateList(pathValuePairs []string) []*pb.Update {
@@ -69,7 +83,32 @@ func buildPbUpdateList(pathValuePairs []string) []*pb.Update {
 			log.Exitf("error in parsing xpath %q to gnmi path", pathValuePair[0])
 		}
 		var pbVal *pb.TypedValue
-		if pathValuePair[1][0] == '@' {
+		if pathValuePair[1][0] == '*' {
+			testcase := TestCaseStaticRoute{
+				path: "local-routes/static-routes/static",
+				value: lr.StaticRoutesStatic{
+					Address: "111.111.111.111/32",
+					NextHops: &lr.StaticNextHops {
+						NextHop: []*lr.NextHopsNextHop {
+							&lr.NextHopsNextHop {
+								Config: &lr.NextHopConfig{
+									NextHop: "222.222.222.222/32",
+								},
+							},
+						},
+					},
+				},
+			}
+			out, err := proto.Marshal(&testcase.value)
+			if err != nil {
+				log.Exitf("cannot read data from testcase")
+			}
+			pbVal = &pb.TypedValue{
+				Value: &pb.TypedValue_ProtoBytes{
+					ProtoBytes: out,
+				},
+			}
+		} else if pathValuePair[1][0] == '@' {
 			jsonFile := pathValuePair[1][1:]
 			jsonConfig, err := ioutil.ReadFile(jsonFile)
 			if err != nil {
@@ -121,6 +160,12 @@ func buildPbUpdateList(pathValuePairs []string) []*pb.Update {
 	return pbUpdateList
 }
 
+func buildPbPrefix (pathTarget *string) *pb.Path {
+	var prefix pb.Path
+	prefix.Target = *pathTarget
+	return &prefix
+}
+
 func main() {
 	flag.Var(&deleteOpt, "delete", "xpath to be deleted.")
 	flag.Var(&replaceOpt, "replace", "xpath:value pair to be replaced. Value can be numeric, boolean, string, or IETF JSON file (. starts with '@').")
@@ -142,10 +187,13 @@ func main() {
 		}
 		deleteList = append(deleteList, pbPath)
 	}
+
 	replaceList := buildPbUpdateList(replaceOpt)
 	updateList := buildPbUpdateList(updateOpt)
+	prefix := buildPbPrefix(pathTarget)
 
 	setRequest := &pb.SetRequest{
+		Prefix:	prefix,
 		Delete:  deleteList,
 		Replace: replaceList,
 		Update:  updateList,
