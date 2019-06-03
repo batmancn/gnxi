@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"regexp"
 
 	log "github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
@@ -32,6 +32,8 @@ import (
 	"github.com/google/gnxi/utils/xpath"
 
 	pb "github.com/openconfig/gnmi/proto/gnmi"
+	gnmi_sonic "github.com/google/gnxi/proto"
+	proto "github.com/golang/protobuf/proto"
 )
 
 type arrayFlags []string
@@ -59,6 +61,27 @@ func parseModelData(s *string) (*pb.ModelData, error) {
 	return pbModelData, nil
 }
 
+func parseTestcaseRib(val *pb.TypedValue) error {
+	var ribTableEntries gnmi_sonic.RibTableEntries
+	err := proto.Unmarshal(val.GetProtoBytes(), &ribTableEntries)
+	if err != nil {
+		return fmt.Errorf("Unmarshal error")
+	}
+
+	for i, entry := range(ribTableEntries.GetEntry()) {
+		log.Infof("Route Entry: %d, route=%s", i, entry.GetRoute())
+	}
+
+	return nil
+}
+
+type testCaseParseFunc func(val *pb.TypedValue) error
+
+type testCase struct {
+	path string
+	parseFunc testCaseParseFunc
+}
+
 var (
 	xPathFlags       arrayFlags
 	pbPathFlags      arrayFlags
@@ -66,8 +89,43 @@ var (
 	targetAddr       = flag.String("target_addr", "localhost:10161", "The target address in the format of host:port")
 	targetName       = flag.String("target_name", "hostname.com", "The target name use to verify the hostname returned by TLS handshake")
 	timeOut          = flag.Duration("time_out", 10*time.Second, "Timeout for the Get request, 10 seconds by default")
-	encodingName     = flag.String("encoding", "JSON_IETF", "value encoding format to be used")
+	encodingName     = flag.String("encoding", "PROTO", "value encoding format to be used")
+	pathTarget       = flag.String("xpath_target", "NONE", "name of the target for which the path is a member")
+
+	testCases = []testCase {
+		testCase {
+			path: "/rib/table/entries",
+			parseFunc: parseTestcaseRib,
+		},
+		testCase {
+			path: "/rib/table/entries/entry",
+			parseFunc: parseTestcaseRib,
+		},
+	}
 )
+
+func getFullPath(path *pb.Path) string {
+	fullPath := ""
+
+	for _, pathElem := range(path.GetElem()) {
+		fullPath += "/" + pathElem.GetName()
+	}
+
+    return fullPath
+}
+
+func checkYangPath(xpath string) int {
+	xpath = "/" + xpath
+
+	for i, tc := range(testCases) {
+		match, _ := regexp.MatchString(tc.path, xpath)
+        if match {
+			return i
+		}
+	}
+
+	return -1
+}
 
 func main() {
 	flag.Var(&xPathFlags, "xpath", "xpath of the config node to be fetched")
@@ -75,6 +133,7 @@ func main() {
 	flag.Var(&pbModelDataFlags, "model_data", "Data models to be used by the target in the format of 'name,organization,version'")
 	flag.Parse()
 
+	// 1. 创建GNMI client
 	opts := credentials.ClientCredentials(*targetName)
 	conn, err := grpc.Dial(*targetAddr, opts...)
 	if err != nil {
@@ -87,6 +146,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), *timeOut)
 	defer cancel()
 
+	// 2. 通过命令行参数，获取编码格式encoding
 	encoding, ok := pb.Encoding_value[*encodingName]
 	if !ok {
 		var gnmiEncodingList []string
@@ -96,9 +156,15 @@ func main() {
 		log.Exitf("Supported encodings: %s", strings.Join(gnmiEncodingList, ", "))
 	}
 
+	// 3. 封装getRequest
 	var pbPathList []*pb.Path
 	var pbModelDataList []*pb.ModelData
 	for _, xPath := range xPathFlags {
+		// 检查xpath是否是proto文件支持的path
+		if checkYangPath(xPath) == -1 {
+			log.Exitf("error in checkYangPath, xPath = %q", xPath)
+		}
+
 		pbPath, err := xpath.ToGNMIPath(xPath)
 		if err != nil {
 			log.Exitf("error in parsing xpath %q to gnmi path", xPath)
@@ -119,7 +185,13 @@ func main() {
 		}
 	}
 
+	// 3.2 封装Target
+	var prefix pb.Path
+	prefix.Target = "MTNOS"
+
+	// 3.3 封装getRequest
 	getRequest := &pb.GetRequest{
+		Prefix:	&prefix,
 		Encoding:  pb.Encoding(encoding),
 		Path:      pbPathList,
 		UseModels: pbModelDataList,
@@ -128,11 +200,26 @@ func main() {
 	fmt.Println("== getRequest:")
 	utils.PrintProto(getRequest)
 
+	// 4. 发送getRequest并获得getResponse
 	getResponse, err := cli.Get(ctx, getRequest)
 	if err != nil {
 		log.Exitf("Get failed: %v", err)
 	}
 
+	// 5. 打印、解析getResponse
 	fmt.Println("== getResponse:")
 	utils.PrintProto(getResponse)
+
+	for _, notify := range(getResponse.GetNotification()) {
+		if notify.GetPrefix().GetTarget() == "MTNOS" {
+			for _, update := range(notify.GetUpdate()) {
+				res := checkYangPath(getFullPath(update.GetPath()))
+
+				if res != -1 {
+					fmt.Println("== parse getResponse:")
+					testCases[res].parseFunc(update.GetVal())
+				}
+			}
+		}
+	}
 }

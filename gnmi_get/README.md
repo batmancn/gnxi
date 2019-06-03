@@ -24,3 +24,7 @@ gnmi_get \
   -password bar \
   -alsologtostderr
 ```
+
+```
+gnmi_get -xpath_target "MTNOS" -xpath "rib/table/entries" -target_addr 172.18.8.210:8080 -alsologtostderr -insecure true
+```

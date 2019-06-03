@@ -1,0 +1,26 @@
+
+syntax = "proto3";
+
+// Path:
+// rib/table/entries
+// rib/table/entries/entry[routeKey=192.168.1.2/24]
+
+package mt.proto;
+
+message EntriesEntry {
+    string routeKey = 1;
+    string routeDetail = 1;
+}
+
+message RibTableEntries {
+    repeated EntriesEntry entry = 1;
+}
+
+message RibTable {
+    RibTableEntries entries = 1;
+}
+
+message Rib {
+    RibTable rib_table = 1;
+}
+
