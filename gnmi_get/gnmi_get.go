@@ -32,6 +32,7 @@ import (
 	"github.com/google/gnxi/utils/xpath"
 
 	pb "github.com/openconfig/gnmi/proto/gnmi"
+	gnmi_sonic "github.com/google/gnxi/proto"
 )
 
 type arrayFlags []string
@@ -59,6 +60,26 @@ func parseModelData(s *string) (*pb.ModelData, error) {
 	return pbModelData, nil
 }
 
+func parseTestcaseRib (getResponse *pb.GetResponse) {
+	for _, notify := range(getResponse.GetNotification()) {
+		for _, update := range(notify.GetUpdate()) {
+			val := update.GetVal()
+
+			var ribTableEntries := &gnmi_sonic.RibTableEntries{}
+			err := proto.Unmashell(val, ribTableEntries)
+
+			for i, entry := range(ribTableEntries.GetEntry()) {
+				log.Info("Route Entry: %d, dst=%v, mask=%v, nexthop=%v, interface=%v", i, entry.GetDestination(), entry.GetNetmask(), entry.GetNexthopMac(), entry.GetInterface())
+			}
+		}
+	}
+}
+
+type testCase struct {
+	path string
+	parseFunc interface{}
+}
+
 var (
 	xPathFlags       arrayFlags
 	pbPathFlags      arrayFlags
@@ -67,7 +88,26 @@ var (
 	targetName       = flag.String("target_name", "hostname.com", "The target name use to verify the hostname returned by TLS handshake")
 	timeOut          = flag.Duration("time_out", 10*time.Second, "Timeout for the Get request, 10 seconds by default")
 	encodingName     = flag.String("encoding", "JSON_IETF", "value encoding format to be used")
+	encodingNamePb   = flag.String("encoding", "PROTO", "value encoding format to be used")
+	pathTarget       = flag.String("xpath_target", "NONE", "name of the target for which the path is a member")
+
+	testCases := []testCase {
+		testCase {
+			path: "/rib/table/entries",
+			parseFunc: parseTestcaseRib,
+		},
+	}
 )
+
+func checkYangPath (xpath string) int {
+	for i, tc := range(testCases) {
+		if xpath == tc.path {
+			return i
+		}
+	}
+
+	return -1
+}
 
 func main() {
 	flag.Var(&xPathFlags, "xpath", "xpath of the config node to be fetched")
@@ -87,13 +127,18 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), *timeOut)
 	defer cancel()
 
-	encoding, ok := pb.Encoding_value[*encodingName]
+	encoding, ok := pb.Encoding_value[*encodingNamePb]
 	if !ok {
 		var gnmiEncodingList []string
 		for _, name := range pb.Encoding_name {
 			gnmiEncodingList = append(gnmiEncodingList, name)
 		}
 		log.Exitf("Supported encodings: %s", strings.Join(gnmiEncodingList, ", "))
+	}
+
+	res := checkYangPath(xPath)
+	if res == -1 {
+		log.Exitf("error in checkYangPath, xpath = %q", xPath)
 	}
 
 	var pbPathList []*pb.Path
@@ -119,7 +164,11 @@ func main() {
 		}
 	}
 
+	var prefix pb.Path
+	prefix.Target = *pathTarget
+
 	getRequest := &pb.GetRequest{
+		Prefix:	prefix,
 		Encoding:  pb.Encoding(encoding),
 		Path:      pbPathList,
 		UseModels: pbModelDataList,
@@ -135,4 +184,7 @@ func main() {
 
 	fmt.Println("== getResponse:")
 	utils.PrintProto(getResponse)
+
+	fmt.Println("== parse getResponse:")
+	testCases[res].parseFunc(getResponse)
 }

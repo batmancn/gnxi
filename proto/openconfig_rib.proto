@@ -1,0 +1,27 @@
+
+syntax = "proto3";
+
+// Path:
+// rib/table/entries
+
+package gnmi.sonic;
+
+message EntriesEntry {
+    string destination = 1;
+    string netmask = 2;
+    string nexthop_mac = 3;
+    string interface = 4;
+}
+
+message RibTableEntries {
+    repeated EntriesEntry entry = 1;
+}
+
+message RibTable {
+    RibTableEntries entries = 1;
+}
+
+message Rib {
+    RibTable rib_table = 1;
+}
+
