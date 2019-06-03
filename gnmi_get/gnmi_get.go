@@ -165,7 +165,7 @@ func main() {
 	}
 
 	var prefix pb.Path
-	prefix.Target = *pathTarget
+	prefix.Target = "MTNOS"
 
 	getRequest := &pb.GetRequest{
 		Prefix:	prefix,

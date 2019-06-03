@@ -28,3 +28,7 @@ gnmi_set \
   -password bar
   -alsologtostderr
 ```
+
+```
+./gnmi_set -xpath_target "MTNOS" -replace local-routes/static-routes/static:"*1" -target_addr 172.18.8.210:8080 -alsologtostderr -insecure true
+```
