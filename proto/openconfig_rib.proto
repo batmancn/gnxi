@@ -3,6 +3,8 @@ syntax = "proto3";
 
 // Path:
 // rib/table/entries
+// rib/table/entries/controlplane
+// rib/table/entries/forwardplane
 
 package gnmi.sonic;
 

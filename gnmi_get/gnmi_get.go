@@ -23,7 +23,6 @@ import (
 	"time"
 
 	log "github.com/golang/glog"
-	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
@@ -33,6 +32,7 @@ import (
 
 	pb "github.com/openconfig/gnmi/proto/gnmi"
 	gnmi_sonic "github.com/google/gnxi/proto"
+	proto "github.com/golang/protobuf/proto"
 )
 
 type arrayFlags []string
@@ -60,24 +60,25 @@ func parseModelData(s *string) (*pb.ModelData, error) {
 	return pbModelData, nil
 }
 
-func parseTestcaseRib (getResponse *pb.GetResponse) {
-	for _, notify := range(getResponse.GetNotification()) {
-		for _, update := range(notify.GetUpdate()) {
-			val := update.GetVal()
-
-			var ribTableEntries := &gnmi_sonic.RibTableEntries{}
-			err := proto.Unmashell(val, ribTableEntries)
-
-			for i, entry := range(ribTableEntries.GetEntry()) {
-				log.Info("Route Entry: %d, dst=%v, mask=%v, nexthop=%v, interface=%v", i, entry.GetDestination(), entry.GetNetmask(), entry.GetNexthopMac(), entry.GetInterface())
-			}
-		}
+func parseTestcaseRib(val *pb.TypedValue) error {
+	var ribTableEntries gnmi_sonic.RibTableEntries
+	err := proto.Unmarshal(val.GetProtoBytes(), &ribTableEntries)
+	if err != nil {
+		return fmt.Errorf("Unmarshal error")
 	}
+
+	for i, entry := range(ribTableEntries.GetEntry()) {
+		log.Info("Route Entry: %d, dst=%v, mask=%v, nexthop=%v, interface=%v", i, entry.GetDestination(), entry.GetNetmask(), entry.GetNexthopMac(), entry.GetInterface())
+	}
+
+	return nil
 }
+
+type testCaseParseFunc func(val *pb.TypedValue) error
 
 type testCase struct {
 	path string
-	parseFunc interface{}
+	parseFunc testCaseParseFunc
 }
 
 var (
@@ -87,11 +88,10 @@ var (
 	targetAddr       = flag.String("target_addr", "localhost:10161", "The target address in the format of host:port")
 	targetName       = flag.String("target_name", "hostname.com", "The target name use to verify the hostname returned by TLS handshake")
 	timeOut          = flag.Duration("time_out", 10*time.Second, "Timeout for the Get request, 10 seconds by default")
-	encodingName     = flag.String("encoding", "JSON_IETF", "value encoding format to be used")
-	encodingNamePb   = flag.String("encoding", "PROTO", "value encoding format to be used")
+	encodingName     = flag.String("encoding", "PROTO", "value encoding format to be used")
 	pathTarget       = flag.String("xpath_target", "NONE", "name of the target for which the path is a member")
 
-	testCases := []testCase {
+	testCases = []testCase {
 		testCase {
 			path: "/rib/table/entries",
 			parseFunc: parseTestcaseRib,
@@ -99,7 +99,17 @@ var (
 	}
 )
 
-func checkYangPath (xpath string) int {
+func getFullPath(path *pb.Path) string {
+	fullPath := ""
+
+	for _, pathElem := range(path.GetElem()) {
+		fullPath += "/" + pathElem.GetName()
+	}
+
+    return fullPath
+}
+
+func checkYangPath(xpath string) int {
 	for i, tc := range(testCases) {
 		if xpath == tc.path {
 			return i
@@ -115,6 +125,7 @@ func main() {
 	flag.Var(&pbModelDataFlags, "model_data", "Data models to be used by the target in the format of 'name,organization,version'")
 	flag.Parse()
 
+	// 1. 创建GNMI client
 	opts := credentials.ClientCredentials(*targetName)
 	conn, err := grpc.Dial(*targetAddr, opts...)
 	if err != nil {
@@ -127,7 +138,8 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), *timeOut)
 	defer cancel()
 
-	encoding, ok := pb.Encoding_value[*encodingNamePb]
+	// 2. 通过命令行参数，获取编码格式encoding
+	encoding, ok := pb.Encoding_value[*encodingName]
 	if !ok {
 		var gnmiEncodingList []string
 		for _, name := range pb.Encoding_name {
@@ -136,11 +148,7 @@ func main() {
 		log.Exitf("Supported encodings: %s", strings.Join(gnmiEncodingList, ", "))
 	}
 
-	res := checkYangPath(xPath)
-	if res == -1 {
-		log.Exitf("error in checkYangPath, xpath = %q", xPath)
-	}
-
+	// 3. 封装getRequest
 	var pbPathList []*pb.Path
 	var pbModelDataList []*pb.ModelData
 	for _, xPath := range xPathFlags {
@@ -164,11 +172,21 @@ func main() {
 		}
 	}
 
+	// 3.1 检查xpath是否是proto文件支持的path
+	for _, xpath := range(pbPathList) {
+		res := checkYangPath(getFullPath(xpath))
+		if res == -1 {
+			log.Exitf("error in checkYangPath, xpath = %q", xpath)
+		}
+	}
+
+	// 3.2 封装Target
 	var prefix pb.Path
 	prefix.Target = "MTNOS"
 
+	// 3.3 封装getRequest
 	getRequest := &pb.GetRequest{
-		Prefix:	prefix,
+		Prefix:	&prefix,
 		Encoding:  pb.Encoding(encoding),
 		Path:      pbPathList,
 		UseModels: pbModelDataList,
@@ -177,14 +195,26 @@ func main() {
 	fmt.Println("== getRequest:")
 	utils.PrintProto(getRequest)
 
+	// 4. 发送getRequest并获得getResponse
 	getResponse, err := cli.Get(ctx, getRequest)
 	if err != nil {
 		log.Exitf("Get failed: %v", err)
 	}
 
+	// 5. 打印、解析getResponse
 	fmt.Println("== getResponse:")
 	utils.PrintProto(getResponse)
 
-	fmt.Println("== parse getResponse:")
-	testCases[res].parseFunc(getResponse)
+	for _, notify := range(getResponse.GetNotification()) {
+		if getFullPath(notify.GetPrefix()) == "MTNOS" {
+			for _, update := range(notify.GetUpdate()) {
+				res := checkYangPath(getFullPath(update.GetPath()))
+
+				if res != -1 {
+					fmt.Println("== parse getResponse:")
+					testCases[res].parseFunc(update.GetVal())
+				}
+			}
+		}
+	}
 }
