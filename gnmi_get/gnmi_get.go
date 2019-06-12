@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"regexp"
 
 	log "github.com/golang/glog"
 	"golang.org/x/net/context"
@@ -68,7 +69,7 @@ func parseTestcaseRib(val *pb.TypedValue) error {
 	}
 
 	for i, entry := range(ribTableEntries.GetEntry()) {
-		log.Info("Route Entry: %d, dst=%v, mask=%v, nexthop=%v, interface=%v", i, entry.GetDestination(), entry.GetNetmask(), entry.GetNexthopMac(), entry.GetInterface())
+		log.Infof("Route Entry: %d, route=%s", i, entry.GetRoute())
 	}
 
 	return nil
@@ -96,6 +97,10 @@ var (
 			path: "/rib/table/entries",
 			parseFunc: parseTestcaseRib,
 		},
+		testCase {
+			path: "/rib/table/entries/entry",
+			parseFunc: parseTestcaseRib,
+		},
 	}
 )
 
@@ -110,8 +115,11 @@ func getFullPath(path *pb.Path) string {
 }
 
 func checkYangPath(xpath string) int {
+	xpath = "/" + xpath
+
 	for i, tc := range(testCases) {
-		if xpath == tc.path {
+		match, _ := regexp.MatchString(tc.path, xpath)
+        if match {
 			return i
 		}
 	}
@@ -152,6 +160,11 @@ func main() {
 	var pbPathList []*pb.Path
 	var pbModelDataList []*pb.ModelData
 	for _, xPath := range xPathFlags {
+		// 检查xpath是否是proto文件支持的path
+		if checkYangPath(xPath) == -1 {
+			log.Exitf("error in checkYangPath, xPath = %q", xPath)
+		}
+
 		pbPath, err := xpath.ToGNMIPath(xPath)
 		if err != nil {
 			log.Exitf("error in parsing xpath %q to gnmi path", xPath)
@@ -169,14 +182,6 @@ func main() {
 		pbModelData, err := parseModelData(&textPbModelData)
 		if err == nil {
 			pbModelDataList = append(pbModelDataList, pbModelData)
-		}
-	}
-
-	// 3.1 检查xpath是否是proto文件支持的path
-	for _, xpath := range(pbPathList) {
-		res := checkYangPath(getFullPath(xpath))
-		if res == -1 {
-			log.Exitf("error in checkYangPath, xpath = %q", xpath)
 		}
 	}
 
@@ -206,7 +211,7 @@ func main() {
 	utils.PrintProto(getResponse)
 
 	for _, notify := range(getResponse.GetNotification()) {
-		if getFullPath(notify.GetPrefix()) == "MTNOS" {
+		if notify.GetPrefix().GetTarget() == "MTNOS" {
 			for _, update := range(notify.GetUpdate()) {
 				res := checkYangPath(getFullPath(update.GetPath()))
 

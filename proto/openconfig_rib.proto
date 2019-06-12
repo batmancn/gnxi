@@ -3,16 +3,13 @@ syntax = "proto3";
 
 // Path:
 // rib/table/entries
-// rib/table/entries/controlplane
-// rib/table/entries/forwardplane
+// rib/table/entries/entry[routeKey=192.168.1.2/24]
 
-package gnmi.sonic;
+package mt.proto;
 
 message EntriesEntry {
-    string destination = 1;
-    string netmask = 2;
-    string nexthop_mac = 3;
-    string interface = 4;
+    string routeKey = 1;
+    string routeDetail = 1;
 }
 
 message RibTableEntries {
