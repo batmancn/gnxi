@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package gnmi.sonic;
+package mt.proto;
 
 // Paths:
 // local-routes/static-routes/static/next-hops/next-hop/state

@@ -1,0 +1,19 @@
+
+syntax = "proto3";
+
+// Path:
+// bgp/neighbors/neighbor/state/neighbor-addresses
+// bgp/neighbors/neighbor/config/neighbor-addresses/address[remoteAddr="1.1.1.1"]
+
+package mt.proto;
+
+message NeighborAddress {
+    string remoteAddr = 1;
+    string localAddr = 2;
+    string state = 3;
+    string asn = 4;
+}
+
+message NeighborAddresses {
+    repeated NeighborAddress na = 1;
+}

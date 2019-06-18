@@ -69,7 +69,22 @@ func parseTestcaseRib(val *pb.TypedValue) error {
 	}
 
 	for i, entry := range(ribTableEntries.GetEntry()) {
-		log.Infof("Route Entry: %d, route=%s", i, entry.GetRoute())
+		log.Infof("Route Entry: %d, route=%s", i, entry.GetEntryDetail())
+	}
+
+	return nil
+}
+
+func parseTestcaseBgpNas(val *pb.TypedValue) error {
+	var nas gnmi_sonic.NeighborAddresses
+	err := proto.Unmarshal(val.GetProtoBytes(), &nas)
+	if err != nil {
+		return fmt.Errorf("Unmarshal error")
+	}
+
+	for i, na := range(nas.GetNa()) {
+		log.Infof("BGP Entry: %d, GetRemoteAddr=%s, GetLocalAddr=%s, GetState=%s, GetAsn=%s",
+			i, na.GetRemoteAddr(), na.GetLocalAddr(), na.GetState(), na.GetAsn())
 	}
 
 	return nil
@@ -100,6 +115,10 @@ var (
 		testCase {
 			path: "/rib/table/entries/entry",
 			parseFunc: parseTestcaseRib,
+		},
+		testCase {
+			path: "/bgp/neighbors/neighbor/neighbor-address",
+			parseFunc: parseTestcaseBgpNas,
 		},
 	}
 )
