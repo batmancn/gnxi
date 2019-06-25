@@ -90,6 +90,10 @@ func parseTestcaseBgpNas(val *pb.TypedValue) error {
 	return nil
 }
 
+func parseTestcaseConfigDbBgpNas(val *pb.TypedValue) error {
+	return nil
+}
+
 type testCaseParseFunc func(val *pb.TypedValue) error
 
 type testCase struct {
@@ -119,6 +123,10 @@ var (
 		testCase {
 			path: "/bgp/neighbors/neighbor/neighbor-address",
 			parseFunc: parseTestcaseBgpNas,
+		},
+		testCase {
+			path: "/BGP_NEIGHBOR",
+			parseFunc: parseTestcaseConfigDbBgpNas,
 		},
 	}
 )
@@ -206,7 +214,7 @@ func main() {
 
 	// 3.2 封装Target
 	var prefix pb.Path
-	prefix.Target = "MTNOS"
+	prefix.Target = *pathTarget
 
 	// 3.3 封装getRequest
 	getRequest := &pb.GetRequest{
@@ -230,7 +238,7 @@ func main() {
 	utils.PrintProto(getResponse)
 
 	for _, notify := range(getResponse.GetNotification()) {
-		if notify.GetPrefix().GetTarget() == "MTNOS" {
+		//if notify.GetPrefix().GetTarget() == "MTNOS" {
 			for _, update := range(notify.GetUpdate()) {
 				res := checkYangPath(getFullPath(update.GetPath()))
 
@@ -239,6 +247,6 @@ func main() {
 					testCases[res].parseFunc(update.GetVal())
 				}
 			}
-		}
+		//}
 	}
 }
