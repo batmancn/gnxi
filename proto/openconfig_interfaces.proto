@@ -2,14 +2,13 @@
 syntax = "proto3";
 
 // Path:
-// interfaces/interface/ethernet[name=Ethernet16]/state/ipv4/addresses
+// interfaces/interface/ethernet[name=Ethernet16]/state/addresses
 
 package mt.proto;
 
 message AddressesAddress {
-    string addr = 1;
-}
-
-message Ipv4Addresses {
-    repeated AddressesAddress addresses = 1;
+    string interface = 1;
+    string addr = 2;
+    string scope = 3;
+    string family = 4;
 }
