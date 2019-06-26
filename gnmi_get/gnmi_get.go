@@ -76,6 +76,8 @@ func parseTestcaseRib(val *pb.TypedValue) error {
 }
 
 func parseTestcaseBgpNas(val *pb.TypedValue) error {
+	fmt.Println("parseTestcaseBgpNas")
+
 	var nas gnmi_sonic.NeighborAddresses
 	err := proto.Unmarshal(val.GetProtoBytes(), &nas)
 	if err != nil {
@@ -83,8 +85,9 @@ func parseTestcaseBgpNas(val *pb.TypedValue) error {
 	}
 
 	for i, na := range(nas.GetNa()) {
-		log.Infof("BGP Entry: %d, GetRemoteAddr=%s, GetLocalAddr=%s, GetState=%s, GetAsn=%s",
-			i, na.GetRemoteAddr(), na.GetLocalAddr(), na.GetState(), na.GetAsn())
+		fmt.Println("BGP Entry: ", i, ", GetRemoteAddr=" + na.GetRemoteAddr() +
+			", GetLocalAddr=" + na.GetLocalAddr() + ", GetState=" + na.GetState() +
+			", GetAsn=" + na.GetAsn() + "")
 	}
 
 	return nil
@@ -121,7 +124,7 @@ var (
 			parseFunc: parseTestcaseRib,
 		},
 		testCase {
-			path: "/bgp/neighbors/neighbor/neighbor-address",
+			path: "/bgp/neighbors/neighbor/state/neighbor-addresses",
 			parseFunc: parseTestcaseBgpNas,
 		},
 		testCase {
@@ -235,7 +238,7 @@ func main() {
 
 	// 5. 打印、解析getResponse
 	fmt.Println("== getResponse:")
-	utils.PrintProto(getResponse)
+	//utils.PrintProto(getResponse)
 
 	for _, notify := range(getResponse.GetNotification()) {
 		//if notify.GetPrefix().GetTarget() == "MTNOS" {
