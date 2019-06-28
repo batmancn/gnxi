@@ -83,7 +83,7 @@ func buildPbUpdateList(pathValuePairs []string) []*pb.Update {
 			log.Exitf("error in parsing xpath %q to gnmi path", pathValuePair[0])
 		}
 		var pbVal *pb.TypedValue
-		if pathValuePair[1][0] == '*' {
+		if pathValuePair[1] == "*1" {
 			testcase := TestCaseStaticRoute{
 				path: "local-routes/static-routes/static",
 				value: lr.StaticRoutesStatic{
@@ -100,6 +100,20 @@ func buildPbUpdateList(pathValuePairs []string) []*pb.Update {
 				},
 			}
 			out, err := proto.Marshal(&testcase.value)
+			if err != nil {
+				log.Exitf("cannot read data from testcase")
+			}
+			pbVal = &pb.TypedValue{
+				Value: &pb.TypedValue_ProtoBytes{
+					ProtoBytes: out,
+				},
+			}
+		} else if pathValuePair[1] == "*2" {
+			value := lr.NeighborAddress{
+				RemoteAddr: "fc00::4a",
+				ActivateState: "down",
+			}
+			out, err := proto.Marshal(&value)
 			if err != nil {
 				log.Exitf("cannot read data from testcase")
 			}
