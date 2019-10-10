@@ -22,6 +22,7 @@ import (
     "strings"
     "time"
     "regexp"
+    "strconv"
 
     log "github.com/golang/glog"
     "golang.org/x/net/context"
@@ -34,6 +35,7 @@ import (
     pb "github.com/openconfig/gnmi/proto/gnmi"
     gnmi_sonic "github.com/google/gnxi/proto"
     proto "github.com/golang/protobuf/proto"
+    mt_proto "github.com/Azure/sonic-telemetry/open-proto/oc"
 )
 
 type arrayFlags []string
@@ -93,6 +95,29 @@ func parseTestcaseBgpNas(val *pb.TypedValue) error {
     return nil
 }
 
+func parseTestcaseBgp(val *pb.TypedValue) error {
+    fmt.Println("parseTestcaseBgp")
+    var bgpProto mt_proto.Bgp
+
+    err := proto.Unmarshal(val.GetProtoBytes(), &bgpProto)
+    if err != nil {
+        return fmt.Errorf("Unmarshal error")
+    }
+
+    for i, na := range(bgpProto.Neighbor) {
+        neighbor := na.Neighbor
+        tansport := na.Neighbor.Transport
+        //fmt.Println("BGP Entry: ", i, ", na.NeighborAddress=" + na.NeighborAddress)
+        fmt.Println("BGP Entry: ", i, ", na.NeighborAddress=" + na.NeighborAddress +
+            ", tansport.LocalAddress.Value=" + tansport.LocalAddress.Value +
+            ", tansport.RemoteAddress.Value=" + tansport.RemoteAddress.Value +
+            ", neighbor.PeerAs=" + strconv.FormatUint(neighbor.PeerAs.Value, 10) +
+            ", neighbor.Enabled=" + strconv.FormatBool(neighbor.Enabled.Value))
+    }
+
+    return nil
+}
+
 func parseTestcaseConfigDbBgpNas(val *pb.TypedValue) error {
     return nil
 }
@@ -108,6 +133,48 @@ func parseTestcaseIntfAddr(val *pb.TypedValue) error {
 
 	fmt.Println("aa.Interface: ", aa.Interface, "aa.Addr: ", aa.Addr,
 		"aa.Scope: ", aa.Scope, "aa.Family: ", aa.Family)
+
+    return nil
+}
+
+func parseTestcaseIntf(val *pb.TypedValue) error {
+	fmt.Println("parseTestcaseIntf")
+
+	aa := new(mt_proto.Interface)
+	err := proto.Unmarshal(val.GetProtoBytes(), aa)
+	if err != nil {
+		return fmt.Errorf("Unmarshal error")
+	}
+
+    fmt.Printf("aa.AdminStatus: %d, aa.OperStatus: %d, aa.Enabled: %t", aa.AdminStatus, aa.OperStatus, aa.Enabled.Value)
+
+    for _, sb := range(aa.Subinterface) {
+        for _, address := range(sb.Subinterface.Ipv4.Address) {
+            fmt.Printf(", IP Address: %s", address.Ip)
+        }
+    }
+
+    fmt.Printf("\n")
+
+    return nil
+}
+
+func parseTestcaseAcl(val *pb.TypedValue) error {
+	fmt.Println("parseTestcaseAcl")
+
+	var aa mt_proto.Acl
+	err := proto.Unmarshal(val.GetProtoBytes(), &aa)
+	if err != nil {
+		return fmt.Errorf("Unmarshal error")
+	}
+
+    for _, aclset := range(aa.AclSet) {
+        fmt.Printf("aclset.Name: %s\n", aclset.Name)
+        for _, entry := range(aclset.AclSet.AclEntry) {
+            fmt.Printf("entry.SequenceId: %d, entry.Actions.ForwardingAction: %d\n", entry.SequenceId, entry.AclEntry.Actions.ForwardingAction)
+        }
+        fmt.Printf("\n")
+    }
 
     return nil
 }
@@ -147,8 +214,20 @@ var (
             parseFunc: parseTestcaseConfigDbBgpNas,
         },
         testCase {
+            path: "/bgp",
+            parseFunc: parseTestcaseBgp,
+        },
+        testCase {
             path: "/interfaces/interface/ethernet/state/addresses",
             parseFunc: parseTestcaseIntfAddr,
+        },
+        testCase {
+            path: "/interfaces/interface",
+            parseFunc: parseTestcaseIntf,
+        },
+        testCase {
+            path: "/acl",
+            parseFunc: parseTestcaseAcl,
         },
     }
 )

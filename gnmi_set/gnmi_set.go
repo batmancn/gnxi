@@ -42,6 +42,8 @@ import (
 	pb "github.com/openconfig/gnmi/proto/gnmi"
 	lr "github.com/google/gnxi/proto"
 	proto "github.com/golang/protobuf/proto"
+	mt_proto "github.com/Azure/sonic-telemetry/open-proto/oc"
+	yw "github.com/openconfig/ygot/proto/ywrapper"
 )
 
 type arrayFlags []string
@@ -109,9 +111,55 @@ func buildPbUpdateList(pathValuePairs []string) []*pb.Update {
 				},
 			}
 		} else if pathValuePair[1] == "*2" {
-			value := lr.NeighborAddress{
-				RemoteAddr: "fc00::4a",
-				ActivateState: "down",
+			value := mt_proto.Bgp_Neighbor{
+				Enabled: &yw.BoolValue{
+					Value: true,
+				},
+			}
+			out, err := proto.Marshal(&value)
+			if err != nil {
+				log.Exitf("cannot read data from testcase")
+			}
+			pbVal = &pb.TypedValue{
+				Value: &pb.TypedValue_ProtoBytes{
+					ProtoBytes: out,
+				},
+			}
+		} else if pathValuePair[1] == "*3" {
+			value := mt_proto.Bgp_Neighbor{
+				Enabled: &yw.BoolValue{
+					Value: false,
+				},
+			}
+			out, err := proto.Marshal(&value)
+			if err != nil {
+				log.Exitf("cannot read data from testcase")
+			}
+			pbVal = &pb.TypedValue{
+				Value: &pb.TypedValue_ProtoBytes{
+					ProtoBytes: out,
+				},
+			}
+		} else if pathValuePair[1] == "*4" {
+			value := mt_proto.Interface{
+				Enabled: &yw.BoolValue{
+					Value: true,
+				},
+			}
+			out, err := proto.Marshal(&value)
+			if err != nil {
+				log.Exitf("cannot read data from testcase")
+			}
+			pbVal = &pb.TypedValue{
+				Value: &pb.TypedValue_ProtoBytes{
+					ProtoBytes: out,
+				},
+			}
+		} else if pathValuePair[1] == "*5" {
+			value := mt_proto.Interface{
+				Enabled: &yw.BoolValue{
+					Value: false,
+				},
 			}
 			out, err := proto.Marshal(&value)
 			if err != nil {
