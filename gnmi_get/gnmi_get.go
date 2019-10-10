@@ -171,7 +171,7 @@ func parseTestcaseAcl(val *pb.TypedValue) error {
     for _, aclset := range(aa.AclSet) {
         fmt.Printf("aclset.Name: %s\n", aclset.Name)
         for _, entry := range(aclset.AclSet.AclEntry) {
-            fmt.Printf("entry.SequenceId: %d, entry.Actions.ForwardingAction: %d\n", entry.SequenceId, entry.AclEntry.Actions.ForwardingAction)
+            fmt.Printf("entry.SequenceId: %d, entry.Actions.Description: %s, entry.Actions.ForwardingAction: %d\n", entry.SequenceId, entry.AclEntry.Description.Value, entry.AclEntry.Actions.ForwardingAction)
         }
         fmt.Printf("\n")
     }
