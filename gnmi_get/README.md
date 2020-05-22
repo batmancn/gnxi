@@ -27,4 +27,6 @@ gnmi_get \
 
 ```
 gnmi_get -xpath_target "MTNOS" -xpath "rib/table/entries" -target_addr 172.18.8.210:8080 -alsologtostderr -insecure true
+
+gnmi_get -xpath_target "MTNOS" -xpath "/interfaces/interface[name=Ethernet16]" -target_addr 172.18.8.241:8080 -alsologtostderr -insecure true
 ```

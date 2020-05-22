@@ -23,6 +23,7 @@ import (
     "time"
     "regexp"
     //"strconv"
+    "encoding/json"
 
     log "github.com/golang/glog"
     "golang.org/x/net/context"
@@ -65,7 +66,7 @@ func parseModelData(s *string) (*pb.ModelData, error) {
 
 func parseTestcaseRib(val *pb.TypedValue) error {
     var ribTableEntries gnmi_sonic.RibTableEntries
-    err := proto.Unmarshal(val.GetProtoBytes(), &ribTableEntries)
+    err := json.Unmarshal(val.GetJsonIetfVal(), &ribTableEntries)
     if err != nil {
         return fmt.Errorf("Unmarshal error")
     }
@@ -81,7 +82,7 @@ func parseTestcaseBgpNas(val *pb.TypedValue) error {
     fmt.Println("parseTestcaseBgpNas")
 
     var nas gnmi_sonic.NeighborAddresses
-    err := proto.Unmarshal(val.GetProtoBytes(), &nas)
+    err := json.Unmarshal(val.GetJsonIetfVal(), &nas)
     if err != nil {
         return fmt.Errorf("Unmarshal error")
     }
@@ -99,19 +100,19 @@ func parseTestcaseBgp(val *pb.TypedValue) error {
     fmt.Println("parseTestcaseBgp")
     var bgpProto mt_proto.Bgp
 
-    err := proto.Unmarshal(val.GetProtoBytes(), &bgpProto)
+    err := json.Unmarshal(val.GetJsonIetfVal(), &bgpProto)
     if err != nil {
         return fmt.Errorf("Unmarshal error")
     }
 
     for i, na := range(bgpProto.Neighbor) {
-        neighbor := na.Neighbor
-        tansport := na.Neighbor.Transport
-        //fmt.Println("BGP Entry: ", i, ", na.NeighborAddress=" + na.NeighborAddress)
-        fmt.Printf("BGP Entry: %d, na.NeighborAddress=%s, tansport.LocalAddress.Value=%s, tansport.RemoteAddress.Value=%s, neighbor.LocalAs=%d, neighbor.PeerAs=%d, neighbor.SessionState=%d, neighbor.Enabled=%t\n",
-            i, na.NeighborAddress, tansport.LocalAddress.Value,
-            tansport.RemoteAddress.Value, neighbor.LocalAs.Value,
-            neighbor.PeerAs.Value, neighbor.SessionState, neighbor.Enabled.Value)
+        //neighbor := na.Neighbor
+        //tansport := na.Neighbor.Transport
+        fmt.Println("BGP Entry: ", i, ", neighbor=", na)
+        //fmt.Printf("BGP Entry: %d, na.NeighborAddress=%s, tansport.LocalAddress.Value=%s, tansport.RemoteAddress.Value=%s, neighbor.LocalAs=%d, neighbor.PeerAs=%d, neighbor.SessionState=%d, neighbor.Enabled=%t\n",
+        //    i, na.NeighborAddress, tansport.LocalAddress.Value,
+        //    tansport.RemoteAddress.Value, neighbor.LocalAs.Value,
+        //    neighbor.PeerAs.Value, neighbor.SessionState, neighbor.Enabled.Value)
     }
 
     return nil
@@ -125,7 +126,7 @@ func parseTestcaseIntfAddr(val *pb.TypedValue) error {
 	fmt.Println("parseTestcaseIntfAddr")
 
 	var aa gnmi_sonic.AddressesAddress
-	err := proto.Unmarshal(val.GetProtoBytes(), &aa)
+	err := json.Unmarshal(val.GetJsonIetfVal(), &aa)
 	if err != nil {
 		return fmt.Errorf("Unmarshal error")
 	}
@@ -140,7 +141,7 @@ func parseTestcaseIntf(val *pb.TypedValue) error {
 	fmt.Println("parseTestcaseIntf")
 
 	aa := new(mt_proto.Interface)
-	err := proto.Unmarshal(val.GetProtoBytes(), aa)
+	err := json.Unmarshal(val.GetJsonIetfVal(), aa)
 	if err != nil {
 		return fmt.Errorf("Unmarshal error")
 	}
@@ -162,7 +163,7 @@ func parseTestcaseAcl(val *pb.TypedValue) error {
 	fmt.Println("parseTestcaseAcl")
 
 	var aa mt_proto.Acl
-	err := proto.Unmarshal(val.GetProtoBytes(), &aa)
+	err := json.Unmarshal(val.GetJsonIetfVal(), &aa)
 	if err != nil {
 		return fmt.Errorf("Unmarshal error")
 	}
