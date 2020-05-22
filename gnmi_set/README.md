@@ -31,4 +31,21 @@ gnmi_set \
 
 ```
 ./gnmi_set -xpath_target "MTNOS" -replace local-routes/static-routes/static:"*1" -target_addr 172.18.8.210:8080 -alsologtostderr -insecure true
+
+./gnmi_set -xpath_target "MTNOS" -update /interfaces/interface[name=Ethernet16]/subinterfaces/subinterface/ipv4/addresses/address/config/ip:@clock-config.json -target_addr 172.18.8.241:8080 -alsologtostderr -insecure true
 ```
+
+## bug
+
+```
+gyw@sonic107:~/go/src/github.com/google/gnxi/gnmi_set$ go build
+# github.com/google/gnxi/gnmi_set
+./gnmi_set.go:115:5: cannot use &"github.com/openconfig/ygot/proto/ywrapper".BoolValue literal (type *"github.com/openconfig/ygot/proto/ywrapper".BoolValue) as type *"github.com/Azure/sonic-telemetry/vendor/github.com/openconfig/ygot/proto/ywrapper".BoolValue in field value
+./gnmi_set.go:130:5: cannot use &"github.com/openconfig/ygot/proto/ywrapper".BoolValue literal (type *"github.com/openconfig/ygot/proto/ywrapper".BoolValue) as type *"github.com/Azure/sonic-telemetry/vendor/github.com/openconfig/ygot/proto/ywrapper".BoolValue in field value
+./gnmi_set.go:145:5: cannot use &"github.com/openconfig/ygot/proto/ywrapper".BoolValue literal (type *"github.com/openconfig/ygot/proto/ywrapper".BoolValue) as type *"github.com/Azure/sonic-telemetry/vendor/github.com/openconfig/ygot/proto/ywrapper".BoolValue in field value
+./gnmi_set.go:160:5: cannot use &"github.com/openconfig/ygot/proto/ywrapper".BoolValue literal (type *"github.com/openconfig/ygot/proto/ywrapper".BoolValue) as type *"github.com/Azure/sonic-telemetry/vendor/github.com/openconfig/ygot/proto/ywrapper".BoolValue in field value
+```
+
+gyw@sonic107:~/go/src/github.com/Azure/sonic-telemetry$ pwd
+/opt/gyw/go/src/github.com/Azure/sonic-telemetry
+gyw@sonic107:~/go/src/github.com/Azure/sonic-telemetry$ mv vendor/ vendor-bak

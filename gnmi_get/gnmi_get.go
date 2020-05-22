@@ -22,7 +22,7 @@ import (
     "strings"
     "time"
     "regexp"
-    "strconv"
+    //"strconv"
 
     log "github.com/golang/glog"
     "golang.org/x/net/context"
@@ -108,11 +108,10 @@ func parseTestcaseBgp(val *pb.TypedValue) error {
         neighbor := na.Neighbor
         tansport := na.Neighbor.Transport
         //fmt.Println("BGP Entry: ", i, ", na.NeighborAddress=" + na.NeighborAddress)
-        fmt.Println("BGP Entry: ", i, ", na.NeighborAddress=" + na.NeighborAddress +
-            ", tansport.LocalAddress.Value=" + tansport.LocalAddress.Value +
-            ", tansport.RemoteAddress.Value=" + tansport.RemoteAddress.Value +
-            ", neighbor.PeerAs=" + strconv.FormatUint(neighbor.PeerAs.Value, 10) +
-            ", neighbor.Enabled=" + strconv.FormatBool(neighbor.Enabled.Value))
+        fmt.Printf("BGP Entry: %d, na.NeighborAddress=%s, tansport.LocalAddress.Value=%s, tansport.RemoteAddress.Value=%s, neighbor.LocalAs=%d, neighbor.PeerAs=%d, neighbor.SessionState=%d, neighbor.Enabled=%t\n",
+            i, na.NeighborAddress, tansport.LocalAddress.Value,
+            tansport.RemoteAddress.Value, neighbor.LocalAs.Value,
+            neighbor.PeerAs.Value, neighbor.SessionState, neighbor.Enabled.Value)
     }
 
     return nil
@@ -169,9 +168,9 @@ func parseTestcaseAcl(val *pb.TypedValue) error {
 	}
 
     for _, aclset := range(aa.AclSet) {
-        fmt.Printf("aclset.Name: %s\n", aclset.Name)
+        fmt.Printf("aclset.Name: %s, aclset.Type: %d, aclset.Description: %s\n", aclset.Name, aclset.Type, aclset.AclSet.Description.Value)
         for _, entry := range(aclset.AclSet.AclEntry) {
-            fmt.Printf("entry.SequenceId: %d, entry.Actions.Description: %s, entry.Actions.ForwardingAction: %d\n", entry.SequenceId, entry.AclEntry.Description.Value, entry.AclEntry.Actions.ForwardingAction)
+            fmt.Printf("entry.SequenceId: %d, entry.Description: %s, entry.Actions.ForwardingAction: %d\n", entry.SequenceId, entry.AclEntry.Description.Value, entry.AclEntry.Actions.ForwardingAction)
         }
         fmt.Printf("\n")
     }

@@ -113,7 +113,7 @@ func buildPbUpdateList(pathValuePairs []string) []*pb.Update {
 		} else if pathValuePair[1] == "*2" {
 			value := mt_proto.Bgp_Neighbor{
 				Enabled: &yw.BoolValue{
-					Value: true,
+					Value: false,
 				},
 			}
 			out, err := proto.Marshal(&value)
