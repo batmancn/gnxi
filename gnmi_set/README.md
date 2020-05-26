@@ -34,6 +34,8 @@ gnmi_set \
 
 ./gnmi_set -xpath_target "MTNOS" -update /interfaces/interface[name=Ethernet16]/subinterfaces/subinterface/ipv4/addresses/address/config/ip:@clock-config.json -target_addr 172.18.8.241:8080 -alsologtostderr -insecure true
 
+./gnmi_set -xpath_target "MTNOS" -delete /interfaces/interface[name=Ethernet16]/subinterfaces/subinterface/ipv4/addresses/address/config/ip[address=1.1.1.1/24] -target_addr 172.18.8.241:8080 -alsologtostderr -insecure true
+
 ./gnmi_set -xpath_target "MTNOS" -update /bgp/neighbors/neighbor[neighbor-address=1.1.1.1]/config:@bgpEnable.json -target_addr 172.18.8.241:8080 -alsologtostderr -insecure true
 ```
 

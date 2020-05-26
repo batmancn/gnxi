@@ -100,7 +100,8 @@ func parseTestcaseBgp(val *pb.TypedValue) error {
     fmt.Println("parseTestcaseBgp")
     var bgpProto mt_proto.Bgp
 
-    err := json.Unmarshal(val.GetJsonIetfVal(), &bgpProto)
+    //err := json.Unmarshal(val.GetJsonIetfVal(), &bgpProto)
+    err := proto.Unmarshal(val.GetProtoBytes(), &bgpProto)
     if err != nil {
         return fmt.Errorf("Unmarshal error")
     }
@@ -337,7 +338,7 @@ func main() {
 
     // 5. 打印、解析getResponse
     fmt.Println("== getResponse:")
-    //utils.PrintProto(getResponse)
+    utils.PrintProto(getResponse)
 
     for _, notify := range(getResponse.GetNotification()) {
         //if notify.GetPrefix().GetTarget() == "MTNOS" {
