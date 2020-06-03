@@ -52,7 +52,7 @@ __version__ = '0.4'
 _RE_PATH_COMPONENT = re.compile(r'''
 ^
 (?P<pname>[^[]+)  # gNMI path name
-(\[(?P<key>\w+)   # gNMI path key
+(\[(?P<key>[a-zA-Z0-9\-\.\/]+)   # gNMI path key
 =
 (?P<value>.*)    # gNMI path value
 \])?$
@@ -124,6 +124,8 @@ def _create_parser():
   parser.add_argument('-g', '--get_cert', help='Obtain certificate from gNMI '
                       'Target when establishing secure gRPC channel.',
                       required=False, action='store_true')
+  parser.add_argument('-xt', '--xpath_target', type=str, help='The gNMI path target utilized'
+                      'in the GetRequest or Subscirbe', required=True)
   parser.add_argument('-x', '--xpath', type=str, help='The gNMI path utilized'
                       'in the GetRequest or Subscirbe', required=True)
   parser.add_argument('-o', '--host_override', type=str, help='Use this as '
@@ -158,6 +160,10 @@ def _path_names(xpath):
     return []
   return xpath.strip().strip('/').split('/')  # Remove leading and trailing '/'.
 
+def _parse_prefix(xpath_target):
+  gnmi_elems = []
+  gnmi_elems.append(gnmi_pb2.PathElem(name=xpath_target, key={}))
+  return gnmi_pb2.Path(elem=gnmi_elems)
 
 def _parse_path(p_names):
   """Parses a list of path names for path keys.
@@ -258,7 +264,7 @@ def _get_val(json_value):
   return val
 
 
-def _get(stub, paths, username, password):
+def _get(stub, prefixs, paths, username, password):
   """Create a gNMI GetRequest.
 
   Args:
@@ -272,9 +278,9 @@ def _get(stub, paths, username, password):
   """
   if username:  # User/pass supplied for Authentication.
     return stub.Get(
-        gnmi_pb2.GetRequest(path=[paths], encoding='JSON_IETF'),
+        gnmi_pb2.GetRequest(prefix=prefixs, path=[paths], encoding='JSON_IETF'),
         metadata=[('username', username), ('password', password)])
-  return stub.Get(gnmi_pb2.GetRequest(path=[paths], encoding='JSON_IETF'))
+  return stub.Get(gnmi_pb2.GetRequest(prefix=prefixs, path=[paths], encoding='JSON_IETF'))
 
 
 def _set(stub, paths, set_type, username, password, json_value):
@@ -367,11 +373,13 @@ def main():
   cert_chain = args['cert_chain']
   json_value = args['value']
   private_key = args['private_key']
+  xpath_target = args['xpath_target']
   xpath = args['xpath']
   host_override = args['host_override']
   user = args['username']
   password = args['password']
   form = args['format']
+  prefixs = _parse_prefix(xpath_target)
   paths = _parse_path(_path_names(xpath))
   kwargs = {'root_cert': root_cert, 'cert_chain': cert_chain,
             'private_key': private_key}
@@ -381,7 +389,7 @@ def main():
   if mode == 'get':
     print('Performing GetRequest, encoding=JSON_IETF', 'to', target,
           ' with the following gNMI Path\n', '-'*25, '\n', paths)
-    response = _get(stub, paths, user, password)
+    response = _get(stub, prefixs, paths, user, password)
     print('The GetResponse is below\n' + '-'*25 + '\n')
     if form == 'protobuff':
       print(response)

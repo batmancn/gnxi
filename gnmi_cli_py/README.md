@@ -125,3 +125,38 @@ Docker image with Python3; based on version py_gnmicli version 0.4:
 docker run --rm -it mike909/py_gnmicli:v0.4 python /gnxi/gnmi_cli_py/py_gnmicli.py -t <target_ip> -p <target_port> -x <xpath> -m get -user <user> -pass <password>
 ```
 Or use the included Dockerfile to build your own.
+
+# test
+
+```
+python py_gnmicli.py  -n  -m get -t 172.18.8.241 -p 8080 -x "/interfaces/interface[name=Ethernet16]" -xt "MTNOS"
+Performing GetRequest, encoding=JSON_IETF to 172.18.8.241  with the following gNMI Path
+ -------------------------
+ elem {
+  name: "interfaces"
+}
+elem {
+  name: "interface"
+  key {
+    key: "name"
+    value: "Ethernet16"
+  }
+}
+
+The GetResponse is below
+-------------------------
+
+{
+  "admin_status": 2,
+  "enabled": {},
+  "oper_status": 3
+}
+
+python py_gnmicli.py  -n  -m set-update -t 172.18.8.241 -p 8080 -x "/bgp/neighbors/neighbor[neighbor-address=1.1.1.1]/config" -xt "MTNOS" -val @bgpEnable.json
+
+python py_gnmicli.py  -n  -m get -t 172.18.8.241 -p 8080 -x "/bgp" -xt "MTNOS"
+
+python py_gnmicli.py  -n  -m set-update -t 172.18.8.241 -p 8080 -x "/interfaces/interface[name=Ethernet16]/subinterfaces/subinterface/ipv4/addresses/address/config/ip" -xt "MTNOS" -val @subip.json
+
+python py_gnmicli.py  -n  -m set-delete -t 172.18.8.241 -p 8080 -x "/interfaces/interface[name=Ethernet16]/subinterfaces/subinterface/ipv4/addresses/address/config/ip[address=1.1.1.1/24]" -xt "MTNOS"
+```
